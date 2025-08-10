@@ -9,6 +9,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
+
 def check_python_version():
     """Python 버전 확인"""
     if sys.version_info < (3, 10):
@@ -17,6 +18,7 @@ def check_python_version():
         return False
     print(f"✅ Python 버전: {sys.version}")
     return True
+
 
 def check_node_js():
     """Node.js 설치 확인"""
@@ -32,13 +34,17 @@ def check_node_js():
         print("💡 Node.js를 설치하세요: https://nodejs.org/")
         return False
 
+
 def install_python_dependencies():
     """Python 의존성 설치"""
     try:
         print("📦 Python 의존성 설치 중...")
-        result = subprocess.run([
-            sys.executable, "-m", "pip", "install", "-r", "requirements.txt"
-        ], check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         print("✅ Python 의존성 설치 완료")
         return True
     except subprocess.CalledProcessError as e:
@@ -46,14 +52,18 @@ def install_python_dependencies():
         print(f"에러 출력: {e.stderr}")
         return False
 
+
 def install_playwright_mcp():
     """Playwright MCP 패키지 확인/설치"""
     try:
         print("🎭 Playwright MCP 패키지 확인 중...")
-        result = subprocess.run([
-            "npx", "@playwright/mcp@latest", "--help"
-        ], capture_output=True, text=True, timeout=60)
-        
+        result = subprocess.run(
+            ["npx", "@playwright/mcp@latest", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
         if result.returncode == 0:
             print("✅ Playwright MCP 사용 가능")
             return True
@@ -64,15 +74,16 @@ def install_playwright_mcp():
         print(f"⚠️ Playwright MCP 확인 실패: {e}")
         return False
 
+
 def create_env_file():
     """환경 설정 파일 생성"""
     env_file = Path(".env")
     env_example = Path(".env.example")
-    
+
     if env_file.exists():
         print("✅ .env 파일이 이미 존재합니다.")
         return True
-    
+
     if env_example.exists():
         print("📝 .env.example에서 .env 파일 생성...")
         shutil.copy(env_example, env_file)
@@ -84,10 +95,11 @@ def create_env_file():
         print("⚠️ .env.example 파일이 없습니다.")
         return False
 
+
 def check_directories():
     """필요한 디렉토리 확인"""
     directories = ["config", "multi_tool_agent", "utils", "core"]
-    
+
     for dir_name in directories:
         dir_path = Path(dir_name)
         if dir_path.exists():
@@ -95,14 +107,15 @@ def check_directories():
         else:
             print(f"❌ {dir_name}/ 디렉토리 없음")
             return False
-    
+
     return True
+
 
 def main():
     """메인 설정 함수"""
     print("🚀 Google ADK Playwright MCP 환경 설정")
     print("=" * 50)
-    
+
     checks = [
         ("Python 버전", check_python_version),
         ("Node.js", check_node_js),
@@ -111,9 +124,9 @@ def main():
         ("Playwright MCP", install_playwright_mcp),
         ("환경 설정 파일", create_env_file),
     ]
-    
+
     all_passed = True
-    
+
     for name, check_func in checks:
         print(f"\n🔍 {name} 확인 중...")
         if not check_func():
@@ -121,9 +134,9 @@ def main():
             print(f"❌ {name} 확인 실패")
         else:
             print(f"✅ {name} 확인 완료")
-    
+
     print("\n" + "=" * 50)
-    
+
     if all_passed:
         print("🎉 환경 설정 완료!")
         print("\n📝 다음 단계:")
@@ -133,8 +146,9 @@ def main():
     else:
         print("❌ 일부 설정이 실패했습니다.")
         print("🔧 위의 오류를 해결한 후 다시 실행하세요.")
-    
+
     return all_passed
+
 
 if __name__ == "__main__":
     success = main()

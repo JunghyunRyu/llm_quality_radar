@@ -1,1 +1,1 @@
-# Utility modules for QA Quality Radar 
+# Utility modules for QA Quality Radar

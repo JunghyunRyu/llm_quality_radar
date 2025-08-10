@@ -1,1 +1,1 @@
-# Core modules for QA Quality Radar 
+# Core modules for QA Quality Radar

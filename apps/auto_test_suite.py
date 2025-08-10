@@ -18,9 +18,10 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 class AutoTestSuite:
     """자동 테스트 스위트 - 종합 웹 자동화 테스트 도구"""
-    
+
     def __init__(self):
         self.mcp_client = PlaywrightMCPClient()
         self.quality_monitor = QualityMonitor()
@@ -29,49 +30,59 @@ class AutoTestSuite:
         self.generated_test_cases = []
         self.generated_scripts = []
         self.execution_results = {}
-        
-    async def run_complete_test_workflow(self, url: str, test_type: str = "comprehensive") -> Dict[str, Any]:
+
+    async def run_complete_test_workflow(
+        self, url: str, test_type: str = "comprehensive"
+    ) -> Dict[str, Any]:
         """완전한 테스트 워크플로우 실행
-        
+
         Args:
             url (str): 테스트할 웹사이트 URL
             test_type (str): 테스트 유형 (comprehensive, functional, accessibility, performance)
-            
+
         Returns:
             Dict: 전체 워크플로우 결과
         """
         try:
             logger.info(f"자동 테스트 스위트 시작: {url}")
             start_time = datetime.now()
-            
+
             # 1단계: 웹 페이지 접근 및 분석
             logger.info("1단계: 웹 페이지 접근 및 분석 중...")
             page_analysis = await self._analyze_webpage_with_mcp(url)
-            
+
             # 2단계: 테스트 케이스 자동 생성
             logger.info("2단계: 테스트 케이스 자동 생성 중...")
-            test_cases = await self._generate_test_cases_from_analysis(page_analysis, test_type)
-            
+            test_cases = await self._generate_test_cases_from_analysis(
+                page_analysis, test_type
+            )
+
             # 3단계: 자동화 스크립트 생성
             logger.info("3단계: 자동화 스크립트 생성 중...")
-            automation_scripts = await self._generate_automation_scripts(test_cases, page_analysis)
-            
+            automation_scripts = await self._generate_automation_scripts(
+                test_cases, page_analysis
+            )
+
             # 4단계: 테스트 실행
             logger.info("4단계: 테스트 실행 중...")
             execution_results = await self._execute_generated_tests(test_cases, url)
-            
+
             # 5단계: 성능 모니터링 및 메트릭 측정
             logger.info("5단계: 성능 모니터링 및 메트릭 측정 중...")
             monitoring_results = await self._perform_monitoring_and_metrics(url)
-            
+
             # 6단계: 종합 리포트 생성
             logger.info("6단계: 종합 리포트 생성 중...")
             final_report = await self._generate_comprehensive_report(
-                page_analysis, test_cases, automation_scripts, execution_results, monitoring_results
+                page_analysis,
+                test_cases,
+                automation_scripts,
+                execution_results,
+                monitoring_results,
             )
-            
+
             execution_time = (datetime.now() - start_time).total_seconds()
-            
+
             return {
                 "workflow_id": f"auto_workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 "url": url,
@@ -84,9 +95,9 @@ class AutoTestSuite:
                 "execution_results": execution_results,
                 "monitoring_results": monitoring_results,
                 "final_report": final_report,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"자동 테스트 스위트 실패: {e}")
             return {
@@ -95,21 +106,21 @@ class AutoTestSuite:
                 "test_type": test_type,
                 "status": "failed",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-    
+
     async def _analyze_webpage_with_mcp(self, url: str) -> Dict[str, Any]:
         """MCP를 활용한 웹 페이지 종합 분석"""
         try:
             logger.info(f"MCP를 통한 웹 페이지 분석 시작: {url}")
-            
+
             # MCP 클라이언트 연결
             await self.mcp_client.connect()
-            
+
             # 페이지 로드
             await self.mcp_client.navigate(url)
             await self.mcp_client.wait_for_page_load()
-            
+
             # 종합 분석 수행
             analysis_result = {
                 "url": url,
@@ -123,21 +134,22 @@ class AutoTestSuite:
                 "network_status": await self.mcp_client.get_network_status(),
                 "console_logs": await self.mcp_client.get_logs(),
                 "screenshots": await self.mcp_client.capture_screenshots(),
-                "analysis_timestamp": datetime.now().isoformat()
+                "analysis_timestamp": datetime.now().isoformat(),
             }
-            
+
             self.page_analysis = analysis_result
             logger.info("웹 페이지 분석 완료")
             return analysis_result
-            
+
         except Exception as e:
             logger.error(f"웹 페이지 분석 실패: {e}")
             raise
-    
+
     async def _get_basic_page_info(self) -> Dict[str, Any]:
         """기본 페이지 정보 수집"""
         try:
-            basic_info = await self.mcp_client.execute_javascript("""
+            basic_info = await self.mcp_client.execute_javascript(
+                """
                 () => {
                     return {
                         title: document.title,
@@ -151,12 +163,13 @@ class AutoTestSuite:
                         cookies: document.cookie ? document.cookie.split(';').length : 0
                     };
                 }
-            """)
+            """
+            )
             return basic_info
         except Exception as e:
             logger.error(f"기본 페이지 정보 수집 실패: {e}")
             return {}
-    
+
     async def _analyze_page_structure(self) -> Dict[str, Any]:
         """페이지 구조 분석"""
         try:
@@ -279,14 +292,16 @@ class AutoTestSuite:
                 return structure;
             }
             """
-            
-            structure_result = await self.mcp_client.execute_javascript(structure_script)
+
+            structure_result = await self.mcp_client.execute_javascript(
+                structure_script
+            )
             return structure_result
-            
+
         except Exception as e:
             logger.error(f"페이지 구조 분석 실패: {e}")
             return {}
-    
+
     async def _analyze_interactive_elements(self) -> Dict[str, Any]:
         """상호작용 요소 분석"""
         try:
@@ -346,14 +361,16 @@ class AutoTestSuite:
                 return interactive;
             }
             """
-            
-            interactive_result = await self.mcp_client.execute_javascript(interactive_script)
+
+            interactive_result = await self.mcp_client.execute_javascript(
+                interactive_script
+            )
             return interactive_result
-            
+
         except Exception as e:
             logger.error(f"상호작용 요소 분석 실패: {e}")
             return {}
-    
+
     async def _analyze_form_elements(self) -> List[Dict[str, Any]]:
         """폼 요소 분석"""
         try:
@@ -409,14 +426,14 @@ class AutoTestSuite:
                 return formAnalysis;
             }
             """
-            
+
             form_result = await self.mcp_client.execute_javascript(form_script)
             return form_result
-            
+
         except Exception as e:
             logger.error(f"폼 요소 분석 실패: {e}")
             return []
-    
+
     async def _collect_performance_metrics(self) -> Dict[str, Any]:
         """성능 메트릭 수집"""
         try:
@@ -471,14 +488,16 @@ class AutoTestSuite:
                 return metrics;
             }
             """
-            
-            performance_result = await self.mcp_client.execute_javascript(performance_script)
+
+            performance_result = await self.mcp_client.execute_javascript(
+                performance_script
+            )
             return performance_result
-            
+
         except Exception as e:
             logger.error(f"성능 메트릭 수집 실패: {e}")
             return {}
-    
+
     async def _analyze_accessibility(self) -> Dict[str, Any]:
         """접근성 분석"""
         try:
@@ -530,14 +549,16 @@ class AutoTestSuite:
                 return accessibility;
             }
             """
-            
-            accessibility_result = await self.mcp_client.execute_javascript(accessibility_script)
+
+            accessibility_result = await self.mcp_client.execute_javascript(
+                accessibility_script
+            )
             return accessibility_result
-            
+
         except Exception as e:
             logger.error(f"접근성 분석 실패: {e}")
             return {}
-    
+
     async def _analyze_seo(self) -> Dict[str, Any]:
         """SEO 분석"""
         try:
@@ -609,13 +630,14 @@ class AutoTestSuite:
                 return seo;
             }
             """
-            
+
             seo_result = await self.mcp_client.execute_javascript(seo_script)
             return seo_result
-            
+
         except Exception as e:
             logger.error(f"SEO 분석 실패: {e}")
             return {}
+
 
 if __name__ == "__main__":
     # 사용 예제
@@ -623,5 +645,5 @@ if __name__ == "__main__":
         auto_suite = AutoTestSuite()
         result = await auto_suite.run_complete_test_workflow("https://www.google.com")
         print(json.dumps(result, indent=2, ensure_ascii=False))
-    
-    asyncio.run(main()) 
+
+    asyncio.run(main())
