@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 테스트 결과 컬렉션
+    match /test_results/{document} {
+      // 읽기: 모든 사용자 허용 (데모용)
+      allow read: if true;
+      
+      // 쓰기: 인증된 사용자만 허용 (추후 확장)
+      allow write: if true; // 데모용으로 임시 허용
+    }
+    
+    // 사용자 설정 컬렉션 (추후 확장용)
+    match /user_settings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 테스트 템플릿 컬렉션
+    match /test_templates/{document} {
+      // 읽기: 모든 사용자 허용
+      allow read: if true;
+      
+      // 쓰기: 관리자만 허용 (추후 확장)
+      allow write: if true; // 데모용으로 임시 허용
+    }
+    
+    // 시스템 메트릭 컬렉션
+    match /system_metrics/{document} {
+      allow read: if true;
+      allow write: if true; // Cloud Functions에서 사용
+    }
+    
+    // 기본적으로 모든 접근 거부
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

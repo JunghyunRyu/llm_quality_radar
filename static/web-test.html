@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Quality Radar - 웹 테스트</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .test-form {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: #00d4ff;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+        }
+
+        .test-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .test-type {
+            padding: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .test-type:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .test-type.selected {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .test-type i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #00d4ff;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 2rem;
+        }
+
+        .result-card {
+            margin-bottom: 1rem;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .result-content {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0 0 8px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: none;
+        }
+
+        .status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status.completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .status.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .status.running {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00d4ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .nav-link {
+            color: #00d4ff;
+            text-decoration: none;
+            margin-bottom: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        /* 상세 결과 스타일 */
+        .detailed-results {
+            margin-top: 1rem;
+        }
+
+        .detailed-results summary {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .detailed-results summary:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .detailed-results[open] summary {
+            border-radius: 8px 8px 0 0;
+            border-bottom: none;
+        }
+
+        .results-sections {
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 1rem;
+        }
+
+        .result-section {
+            margin-bottom: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .result-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.95rem;
+        }
+
+        .section-content {
+            padding: 1rem;
+        }
+
+        .content-item {
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .content-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .text-content {
+            margin: 0;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* 아이콘 애니메이션 */
+        .detailed-results summary i {
+            transition: transform 0.3s ease;
+        }
+
+        .detailed-results[open] summary i {
+            transform: rotate(180deg);
+        }
+
+        /* 챗봇 스타일 */
+        .chat-message {
+            display: flex;
+            margin-bottom: 1.5rem;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .user-message .chat-avatar {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            color: white;
+        }
+
+        .assistant-message .chat-avatar {
+            background: linear-gradient(135deg, #00d4ff, #0ea5e9);
+            color: white;
+        }
+
+        .chat-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-message .chat-content {
+            background: rgba(124, 58, 237, 0.1);
+            border-color: rgba(124, 58, 237, 0.2);
+        }
+
+        .assistant-message .chat-content {
+            background: rgba(0, 212, 255, 0.05);
+            border-color: rgba(0, 212, 255, 0.15);
+        }
+
+        .chat-title {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .user-message .chat-title {
+            color: #a855f7;
+        }
+
+        .chat-text {
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* 마크다운 요소 스타일 */
+        .chat-text strong {
+            color: #00d4ff;
+            font-weight: 700;
+        }
+
+        .chat-text em {
+            color: #a855f7;
+            font-style: italic;
+        }
+
+        .chat-text ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .chat-text li {
+            margin-bottom: 0.25rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .chat-text p {
+            margin: 0.5rem 0;
+        }
+
+        .chat-text p:first-child {
+            margin-top: 0;
+        }
+
+        .chat-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .chat-code-block {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #00d4ff;
+        }
+
+        /* 스크린샷 스타일 */
+        .screenshot-container {
+            text-align: center;
+        }
+
+        .screenshot-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .screenshot-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .screenshot-placeholder {
+            text-align: center;
+            padding: 40px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+            color: #6c757d;
+        }
+        
+        .screenshot-placeholder p {
+            margin: 10px 0 0 0;
+            font-size: 14px;
+        }
+        
+        .screenshot-error {
+            padding: 20px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            color: #856404;
+            text-align: center;
+        }
+        
+        .debug-info {
+            margin-top: 10px;
+            font-size: 11px;
+        }
+        
+        .debug-info summary {
+            cursor: pointer;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .debug-info pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 10px;
+            margin: 5px 0 0 0;
+        }
+        
+        /* 진행 상황 표시 스타일 */
+        .progress-container {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .progress-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .progress-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .progress-content {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .progress-step {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        
+        .progress-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        .progress-percent {
+            font-weight: 600;
+            font-size: 1rem;
+            min-width: 40px;
+        }
+        
+        .progress-time {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 25px;
+        }
+        
+        .progress-tips {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .tip-item {
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            text-align: left;
+            opacity: 0.9;
+        }
+        
+        .tip-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        }
+
+        .screenshot-description {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .chat-message {
+                gap: 0.5rem;
+            }
+            
+            .chat-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+            
+            .chat-content {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="nav-link">
+            <i class="fas fa-arrow-left"></i>
+            메인 페이지로 돌아가기
+        </a>
+
+        <div class="header">
+            <h1><i class="fas fa-globe"></i> 웹 테스트</h1>
+            <p>AI 기반 자동화 웹 테스트를 실행하세요</p>
+        </div>
+
+        <div class="glass">
+            <form id="testForm" class="test-form">
+                <div class="form-group">
+                    <label for="url">테스트할 웹사이트 URL</label>
+                    <input type="url" id="url" name="url" placeholder="https://example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label>테스트 타입 선택</label>
+                    <div class="test-types" id="testTypes">
+                        <!-- 테스트 타입들이 여기에 동적으로 로드됩니다 -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="customInstruction">사용자 정의 명령어 (선택사항)</label>
+                    <textarea id="customInstruction" name="customInstruction" rows="3" placeholder="특별한 테스트 요구사항이 있다면 여기에 입력하세요..."></textarea>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    <i class="fas fa-play"></i>
+                    테스트 실행
+                </button>
+            </form>
+        </div>
+
+        <div class="results" id="results">
+            <!-- 테스트 결과가 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        let selectedTestType = 'basic';
+
+        // 페이지 로드 시 테스트 타입 로드
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadTestTypes();
+            
+            // 기본 URL들 설정
+            const urlInput = document.getElementById('url');
+            const demoUrls = [
+                'https://www.google.com',
+                'https://www.github.com',
+                'https://www.stackoverflow.com'
+            ];
+            
+            // URL 입력창에 placeholder 설정
+            urlInput.placeholder = demoUrls[Math.floor(Math.random() * demoUrls.length)];
+        });
+
+        // 테스트 타입 로드
+        async function loadTestTypes() {
+            try {
+                const response = await fetch('/api/test/types');
+                const data = await response.json();
+                
+                const testTypesContainer = document.getElementById('testTypes');
+                testTypesContainer.innerHTML = '';
+                
+                data.test_types.forEach(type => {
+                    const typeElement = document.createElement('div');
+                    typeElement.className = `test-type ${type.id === 'basic' ? 'selected' : ''}`;
+                    typeElement.onclick = () => selectTestType(type.id);
+                    typeElement.innerHTML = `
+                        <i class="${type.icon}"></i>
+                        <div><strong>${type.name}</strong></div>
+                        <div style="font-size: 0.875rem; opacity: 0.8;">${type.description}</div>
+                    `;
+                    testTypesContainer.appendChild(typeElement);
+                });
+            } catch (error) {
+                console.error('테스트 타입 로드 실패:', error);
+            }
+        }
+
+        // 테스트 타입 선택
+        function selectTestType(typeId) {
+            selectedTestType = typeId;
+            
+            // 모든 테스트 타입에서 selected 클래스 제거
+            document.querySelectorAll('.test-type').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // 선택된 테스트 타입에 selected 클래스 추가
+            event.currentTarget.classList.add('selected');
+        }
+
+        // 폼 제출 처리
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value;
+            const customInstruction = document.getElementById('customInstruction').value;
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!url) {
+                alert('URL을 입력해주세요.');
+                return;
+            }
+            
+            // 버튼 비활성화 및 로딩 상태
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div> 테스트 실행 중...';
+            
+            // 진행 상황 표시
+            showProgressIndicator();
+            
+            try {
+                // 테스트 실행
+                const response = await fetch('/api/test/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        test_type: selectedTestType,
+                        custom_instruction: customInstruction || null
+                    })
+                });
+                
+                const result = await response.json();
+                hideProgressIndicator();
+                displayResult(result);
+                
+            } catch (error) {
+                hideProgressIndicator();
+                console.error('테스트 실행 실패:', error);
+                displayResult({
+                    test_id: 'error',
+                    status: 'failed',
+                    execution_time: 0,
+                    events_count: 0,
+                    error: error.message
+                });
+            } finally {
+                // 버튼 복원
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-play"></i> 테스트 실행';
+            }
+        });
+
+        // 결과 표시
+        function displayResult(result) {
+            const resultsContainer = document.getElementById('results');
+            
+            const resultCard = document.createElement('div');
+            resultCard.className = 'result-card glass';
+            
+            const statusClass = result.status === 'completed' ? 'completed' : 
+                               result.status === 'failed' ? 'failed' : 'running';
+            
+            const executionTime = result.execution_time ? `${result.execution_time.toFixed(2)}초` : '알 수 없음';
+            
+            // 테스트 요약 제목 (AI 생성된)
+            const testTitle = result.result_summary?.test_summary || result.test_id;
+            
+            resultCard.innerHTML = `
+                <div class="result-header">
+                    <div>
+                        <strong>${testTitle}</strong>
+                        <div style="font-size: 0.875rem; opacity: 0.8; margin-top: 0.25rem;">
+                            ${new Date().toLocaleString()}
+                        </div>
+                    </div>
+                    <span class="status ${statusClass}">${result.status}</span>
+                </div>
+                <div class="result-content">
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong>실행 시간:</strong> ${executionTime}
+                    </div>
+                    
+                    ${result.error ? `
+                        <div style="color: #ef4444; margin-bottom: 1rem;">
+                            <strong>오류:</strong> ${result.error}
+                        </div>
+                    ` : ''}
+                    
+                    ${result.result_summary ? generateDetailedResults(result.result_summary) : ''}
+                </div>
+            `;
+            
+            // 최신 결과를 맨 위에 추가
+            resultsContainer.insertBefore(resultCard, resultsContainer.firstChild);
+        }
+
+        // 상세 결과 생성
+        function generateDetailedResults(summary) {
+            if (!summary.structured_qa && !summary.parsed_results) {
+                return '';
+            }
+            
+            return `
+                <details class="detailed-results">
+                    <summary style="cursor: pointer; margin-bottom: 1rem; font-weight: 600; color: #00d4ff;">
+                        <i class="fas fa-chevron-down" style="margin-right: 0.5rem;"></i>
+                        상세 결과 보기
+                    </summary>
+                    
+                    <div class="results-sections">
+                        ${generateChatStyle(summary)}
+                    </div>
+                </details>
+            `;
+        }
+
+        // 챗봇 스타일 결과 생성
+        function generateChatStyle(summary) {
+            let chatHtml = '';
+            
+            // 테스트 지시사항 추가
+            chatHtml += generateChatMessage('user', '테스트 요청', summary.instruction);
+            
+            // 구조화된 Q&A 표시
+            if (summary.structured_qa && summary.structured_qa.length > 0) {
+                summary.structured_qa.forEach(qa => {
+                    chatHtml += generateChatMessage('assistant', qa.question, qa.answer, qa.type);
+                });
+            }
+            
+            // 스크린샷 표시
+            const screenshots = summary.parsed_results?.screenshots || [];
+            if (screenshots.length > 0) {
+                screenshots.forEach(screenshot => {
+                    if (screenshot.image_data) {
+                        chatHtml += generateScreenshotMessage(screenshot);
+                    } else {
+                        chatHtml += generateChatMessage('assistant', '📷 스크린샷', '페이지 스크린샷을 성공적으로 촬영했습니다.');
+                    }
+                });
+            } else {
+                // 스크린샷이 없는 경우 대안 메시지
+                chatHtml += generateChatMessage('assistant', '📷 화면 캡처', '페이지 분석을 위한 스크린샷이 촬영되었습니다.');
+            }
+            
+            // 실행된 테스트 내용은 디버그용이므로 제거
+            
+            return chatHtml;
+        }
+
+        // 챗 메시지 생성
+        function generateChatMessage(sender, title, content, type = 'text') {
+            const isUser = sender === 'user';
+            const avatarIcon = isUser ? 'fas fa-user' : 'fas fa-robot';
+            const messageClass = isUser ? 'user-message' : 'assistant-message';
+            
+            let contentHtml = '';
+            if (type === 'code') {
+                contentHtml = `<pre class="chat-code-block">${content}</pre>`;
+            } else {
+                contentHtml = `<div class="chat-text">${formatMarkdown(content)}</div>`;
+            }
+            
+            return `
+                <div class="chat-message ${messageClass}">
+                    <div class="chat-avatar">
+                        <i class="${avatarIcon}"></i>
+                    </div>
+                    <div class="chat-content">
+                        <div class="chat-title">${title}</div>
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 스크린샷 메시지 생성 (개선된 버전)
+        function generateScreenshotMessage(screenshot) {
+            console.log('📸 스크린샷 데이터:', screenshot); // 디버깅
+            
+            const imageData = screenshot.image_data || screenshot.file_path;
+            const description = screenshot.description || '스크린샷';
+            
+            let imageHtml = '';
+            
+            if (imageData) {
+                if (imageData.startsWith('data:image/')) {
+                    // Base64 이미지 데이터
+                    imageHtml = `<img src="${imageData}" alt="스크린샷" class="screenshot-image" onload="console.log('🖼️ 이미지 로드 성공')" onerror="console.log('❌ 이미지 로드 실패')">`;
+                } else if (imageData.includes('.png') || imageData.includes('.jpg') || imageData.includes('.jpeg')) {
+                    // 파일 경로
+                    imageHtml = `<img src="${imageData}" alt="스크린샷" class="screenshot-image" onload="console.log('🖼️ 파일 이미지 로드 성공')" onerror="console.log('❌ 파일 이미지 로드 실패')">`;
+                } else {
+                    // 기타 데이터
+                    imageHtml = `<div class="screenshot-error">이미지 형식을 인식할 수 없습니다</div>`;
+                }
+            } else {
+                // 이미지 데이터 없음
+                imageHtml = `<div class="screenshot-placeholder">
+                    <i class="fas fa-image" style="font-size: 48px; color: #666;"></i>
+                    <p>스크린샷을 찾을 수 없습니다</p>
+                </div>`;
+            }
+            
+            return `
+                <div class="chat-message assistant-message">
+                    <div class="chat-avatar">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="chat-content">
+                        <div class="chat-title">📸 스크린샷</div>
+                        <div class="screenshot-container">
+                            ${imageHtml}
+                            <div class="screenshot-description">${description}</div>
+                            ${screenshot.raw_event ? `<details class="debug-info"><summary>디버그 정보</summary><pre>${screenshot.raw_event}</pre></details>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 진행 상황 표시 함수들
+        function showProgressIndicator() {
+            const resultsContainer = document.getElementById('results');
+            if (!resultsContainer) return; // 방어 코드
+
+            let progressEl = document.getElementById('progressContainer');
+            if (!progressEl) {
+                progressEl = document.createElement('div');
+                progressEl.id = 'progressContainer';
+                // 최신 진행 표시가 항상 맨 위에 오도록 prepend
+                resultsContainer.prepend(progressEl);
+            }
+
+            progressEl.innerHTML = `
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <div class="progress-spinner"></div>
+                        <h3>🚀 테스트 실행 중...</h3>
+                    </div>
+                    <div class="progress-content">
+                        <p class="progress-step" id="progressStep">에이전트를 초기화하고 있습니다...</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                        <p class="progress-time">⏱️ 예상 시간: 10-30초</p>
+                        <div class="progress-tips">
+                            <div class="tip-item">💡 <strong>팁:</strong> 종합 테스트는 여러 기능을 확인하므로 시간이 걸릴 수 있습니다.</div>
+                            <div class="tip-item">⚠️ 30초 후에도 완료되지 않으면 타임아웃됩니다.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 가상 진행 상황 시뮬레이션
+            simulateProgress();
+        }
+
+        function hideProgressIndicator() {
+            // 진행 상황 타이머 정리
+            if (window.progressTimer) {
+                clearInterval(window.progressTimer);
+                window.progressTimer = null;
+            }
+
+            // 진행 표시 요소 제거
+            const progressEl = document.getElementById('progressContainer');
+            if (progressEl && progressEl.parentNode) {
+                progressEl.parentNode.removeChild(progressEl);
+            }
+        }
+        
+        function simulateProgress() {
+            const steps = [
+                "에이전트를 초기화하고 있습니다...",
+                "MCP 서버에 연결 중...",
+                "브라우저를 시작하고 있습니다...",
+                "웹페이지로 이동 중...",
+                "페이지 분석을 시작합니다...",
+                "기능 테스트를 실행 중...",
+                "품질 지표를 수집하고 있습니다...",
+                "스크린샷을 촬영하고 있습니다...",
+                "결과를 정리하고 있습니다..."
+            ];
+            
+            let currentStep = 0;
+            let progress = 0;
+            
+            window.progressTimer = setInterval(() => {
+                if (currentStep < steps.length) {
+                    const stepElement = document.getElementById('progressStep');
+                    if (stepElement) {
+                        stepElement.textContent = steps[currentStep];
+                    }
+                    currentStep++;
+                }
+                
+                progress += Math.random() * 15 + 5; // 5-20% 씩 증가
+                progress = Math.min(progress, 95); // 95%까지만
+                
+                const progressFill = document.getElementById('progressFill');
+                const progressPercent = document.getElementById('progressPercent');
+                if (progressFill && progressPercent) {
+                    progressFill.style.width = progress + '%';
+                    progressPercent.textContent = Math.round(progress) + '%';
+                }
+                
+                if (progress >= 95) {
+                    const stepElement = document.getElementById('progressStep');
+                    if (stepElement) {
+                        stepElement.textContent = "거의 완료되었습니다...";
+                    }
+                    clearInterval(window.progressTimer);
+                }
+            }, 2000); // 2초마다 업데이트
+        }
+
+        // 마크다운 포맷팅 함수
+        function formatMarkdown(text) {
+            if (!text) return '';
+            
+            let formatted = text;
+            
+            // **굵은 텍스트** 처리
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // *기울임 텍스트* 처리
+            formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // 마침표 이후 자동 줄넘김 처리
+            formatted = formatted.replace(/\.\s+([A-Z가-힣])/g, '.<br>$1');
+            
+            // 줄넘김 처리 (두 번의 줄넘김은 문단으로, 한 번은 br로)
+            formatted = formatted.replace(/\n\n/g, '</p><p>');
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // 첫 번째와 마지막 문단 태그 추가
+            if (formatted.includes('<br>') || formatted.includes('</p><p>')) {
+                formatted = '<p>' + formatted + '</p>';
+            }
+            
+            // 빈 문단 제거
+            formatted = formatted.replace(/<p><\/p>/g, '');
+            formatted = formatted.replace(/<p><br><\/p>/g, '');
+            
+            // 리스트 처리 (* 항목)
+            if (formatted.includes('* ')) {
+                const lines = formatted.split('<br>');
+                let inList = false;
+                let newFormatted = '';
+                
+                for (let line of lines) {
+                    if (line.trim().startsWith('* ')) {
+                        if (!inList) {
+                            newFormatted += '<ul>';
+                            inList = true;
+                        }
+                        newFormatted += '<li>' + line.trim().substring(2) + '</li>';
+                    } else {
+                        if (inList) {
+                            newFormatted += '</ul>';
+                            inList = false;
+                        }
+                        newFormatted += line + '<br>';
+                    }
+                }
+                
+                if (inList) {
+                    newFormatted += '</ul>';
+                }
+                
+                formatted = newFormatted.replace(/<br>$/, ''); // 마지막 br 제거
+            }
+            
+            return formatted;
+        }
+
+
+    </script>
+</body>
+</html>

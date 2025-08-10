@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대시보드 - LLM Quality Radar</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e  50%, #16213e 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Glassmorphism 효과 */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 네비게이션 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            background: rgba(15, 15, 35, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #00d4ff;
+        }
+
+        /* 대시보드 컨테이너 */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 80px auto 0;
+            padding: 2rem;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-shadow: 0 4px 16px rgba(0, 212, 255, 0.2);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #00d4ff, #00bcd4);
+            color: #0f0f23;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+            background: linear-gradient(135deg, #1ee8ff, #00d0e6);
+        }
+
+        /* 상태 카드 */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-card {
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        }
+
+        .status-card.warning::before {
+            background: linear-gradient(90deg, #FF9800, #FFC107);
+        }
+
+        .status-card.error::before {
+            background: linear-gradient(90deg, #F44336, #E91E63);
+        }
+
+        .status-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-card.success .status-icon {
+            color: #4CAF50;
+        }
+
+        .status-card.warning .status-icon {
+            color: #FF9800;
+        }
+
+        .status-card.error .status-icon {
+            color: #F44336;
+        }
+
+        .status-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-change {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .status-change.positive {
+            color: #4CAF50;
+        }
+
+        .status-change.negative {
+            color: #F44336;
+        }
+
+        /* 차트 섹션 */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            padding: 1.5rem;
+            height: 400px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* 테스트 결과 테이블 */
+        .test-results {
+            padding: 1.5rem;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .results-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            color: #0f0f23;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .results-table th {
+            font-weight: 600;
+            opacity: 0.8;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .status-badge.failed {
+            background: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+        }
+
+        .status-badge.running {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+
+        /* 실시간 알림 */
+        .notifications {
+            position: fixed;
+            top: 100px;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        .notification {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 반응형 */
+        @media (max-width: 1024px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 1rem;
+            }
+
+            .dashboard-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .status-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        /* 로딩 애니메이션 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 네비게이션 -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                <i class="fas fa-radar"></i> LLM Quality Radar
+            </a>
+            <ul class="nav-links">
+                <li><a href="/">홈</a></li>
+                <li><a href="/test-generator">테스트 생성기</a></li>
+                <li><a href="/api">API</a></li>
+                <li><a href="/docs">문서</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 대시보드 컨테이너 -->
+    <div class="dashboard-container">
+        <!-- 대시보드 헤더 -->
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">실시간 대시보드</h1>
+            <button class="refresh-btn" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt"></i>
+                새로고침
+            </button>
+        </div>
+
+        <!-- 상태 카드 -->
+        <div class="status-grid">
+            <div class="status-card glass success">
+                <div class="status-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-title">시스템 상태</div>
+                <div class="status-value" id="system-status">정상</div>
+                <div class="status-change positive">+2.5%</div>
+            </div>
+
+            <div class="status-card glass success">
+                <div class="status-icon">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="status-title">실행 중인 테스트</div>
+                <div class="status-value" id="running-tests">3</div>
+                <div class="status-change">2분 전 업데이트</div>
+            </div>
+
+            <div class="status-card glass success">
+                <div class="status-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="status-title">평균 품질 점수</div>
+                <div class="status-value" id="avg-quality">87.5</div>
+                <div class="status-change positive">+5.2%</div>
+            </div>
+
+            <div class="status-card glass warning">
+                <div class="status-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="status-title">경고 알림</div>
+                <div class="status-value" id="warnings">2</div>
+                <div class="status-change negative">+1</div>
+            </div>
+        </div>
+
+        <!-- 차트 섹션 -->
+        <div class="charts-section">
+            <div class="chart-container glass">
+                <div class="chart-title">품질 점수 트렌드</div>
+                <canvas id="qualityChart"></canvas>
+            </div>
+
+            <div class="chart-container glass">
+                <div class="chart-title">테스트 성공률</div>
+                <canvas id="successChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 테스트 결과 테이블 -->
+        <div class="test-results glass">
+            <div class="results-header">
+                <div class="results-title">최근 테스트 결과</div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterResults('all')">전체</button>
+                    <button class="filter-btn" onclick="filterResults('success')">성공</button>
+                    <button class="filter-btn" onclick="filterResults('failed')">실패</button>
+                    <button class="filter-btn" onclick="filterResults('running')">실행중</button>
+                </div>
+            </div>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>테스트 ID</th>
+                        <th>URL</th>
+                        <th>테스트 유형</th>
+                        <th>상태</th>
+                        <th>품질 점수</th>
+                        <th>실행 시간</th>
+                        <th>완료 시간</th>
+                    </tr>
+                </thead>
+                <tbody id="results-tbody">
+                    <!-- 동적으로 생성됨 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 실시간 알림 -->
+    <div class="notifications" id="notifications">
+        <!-- 동적으로 생성됨 -->
+    </div>
+
+    <script>
+        // 차트 초기화
+        let qualityChart, successChart;
+
+        // 품질 점수 차트
+        function initQualityChart() {
+            const ctx = document.getElementById('qualityChart').getContext('2d');
+            qualityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                    datasets: [{
+                        label: '품질 점수',
+                        data: [85, 87, 86, 88, 89, 87, 90, 88, 89, 91, 87, 89],
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 성공률 차트
+        function initSuccessChart() {
+            const ctx = document.getElementById('successChart').getContext('2d');
+            successChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['성공', '실패', '실행중'],
+                    datasets: [{
+                        data: [85, 10, 5],
+                        backgroundColor: [
+                            '#4CAF50',
+                            '#F44336',
+                            '#FF9800'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white',
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 테스트 결과 데이터
+        const testResults = [
+            {
+                id: 'TEST_001',
+                url: 'https://www.google.com',
+                type: '웹 자동화',
+                status: 'success',
+                quality: 92.5,
+                duration: '45초',
+                completed: '2024-01-15 14:30:25'
+            },
+            {
+                id: 'TEST_002',
+                url: 'https://www.github.com',
+                type: '접근성 테스트',
+                status: 'success',
+                quality: 88.0,
+                duration: '1분 12초',
+                completed: '2024-01-15 14:28:10'
+            },
+            {
+                id: 'TEST_003',
+                url: 'https://www.stackoverflow.com',
+                type: '성능 테스트',
+                status: 'running',
+                quality: null,
+                duration: '2분 30초',
+                completed: null
+            },
+            {
+                id: 'TEST_004',
+                url: 'https://www.example.com',
+                type: '반응형 테스트',
+                status: 'failed',
+                quality: 65.0,
+                duration: '3분 15초',
+                completed: '2024-01-15 14:25:45'
+            }
+        ];
+
+        // 테스트 결과 테이블 렌더링
+        function renderTestResults(results = testResults) {
+            const tbody = document.getElementById('results-tbody');
+            tbody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${result.id}</td>
+                    <td>${result.url}</td>
+                    <td>${result.type}</td>
+                    <td><span class="status-badge ${result.status}">${getStatusText(result.status)}</span></td>
+                    <td>${result.quality ? result.quality.toFixed(1) : '-'}</td>
+                    <td>${result.duration}</td>
+                    <td>${result.completed || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 상태 텍스트 변환
+        function getStatusText(status) {
+            const statusMap = {
+                'success': '성공',
+                'failed': '실패',
+                'running': '실행중'
+            };
+            return statusMap[status] || status;
+        }
+
+        // 결과 필터링
+        function filterResults(filter) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            let filteredResults = testResults;
+            if (filter !== 'all') {
+                filteredResults = testResults.filter(result => result.status === filter);
+            }
+            renderTestResults(filteredResults);
+        }
+
+        // 알림 추가
+        function addNotification(message, type = 'info') {
+            const notifications = document.getElementById('notifications');
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            notifications.appendChild(notification);
+            
+            // 5초 후 자동 제거
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        // 대시보드 새로고침
+        function refreshDashboard() {
+            const btn = event.target;
+            const icon = btn.querySelector('i');
+            
+            // 로딩 상태
+            icon.className = 'fas fa-spinner fa-spin';
+            btn.disabled = true;
+
+            // API 호출 시뮬레이션
+            setTimeout(() => {
+                // 랜덤 데이터 업데이트
+                document.getElementById('running-tests').textContent = Math.floor(Math.random() * 5) + 1;
+                document.getElementById('avg-quality').textContent = (85 + Math.random() * 10).toFixed(1);
+                document.getElementById('warnings').textContent = Math.floor(Math.random() * 3);
+
+                // 차트 업데이트
+                updateCharts();
+
+                // 알림 추가
+                addNotification('대시보드가 새로고침되었습니다.', 'success');
+
+                // 버튼 복원
+                icon.className = 'fas fa-sync-alt';
+                btn.disabled = false;
+            }, 1000);
+        }
+
+        // 차트 업데이트
+        function updateCharts() {
+            // 품질 점수 차트 업데이트
+            const newData = qualityChart.data.datasets[0].data.map(() => 85 + Math.random() * 10);
+            qualityChart.data.datasets[0].data = newData;
+            qualityChart.update();
+
+            // 성공률 차트 업데이트
+            const success = Math.floor(Math.random() * 20) + 75;
+            const failed = Math.floor(Math.random() * 15) + 5;
+            const running = 100 - success - failed;
+            
+            successChart.data.datasets[0].data = [success, failed, running];
+            successChart.update();
+        }
+
+        // 실시간 업데이트 시뮬레이션
+        function startRealTimeUpdates() {
+            setInterval(() => {
+                // 랜덤 알림 생성
+                const notifications = [
+                    '새로운 테스트가 시작되었습니다.',
+                    '품질 점수가 업데이트되었습니다.',
+                    '경고: 성능 지표가 임계값을 초과했습니다.'
+                ];
+                
+                if (Math.random() < 0.3) { // 30% 확률로 알림 생성
+                    const message = notifications[Math.floor(Math.random() * notifications.length)];
+                    addNotification(message, Math.random() < 0.7 ? 'info' : 'warning');
+                }
+            }, 10000); // 10초마다
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initQualityChart();
+            initSuccessChart();
+            renderTestResults();
+            startRealTimeUpdates();
+            
+            // 초기 알림
+            setTimeout(() => {
+                addNotification('대시보드가 로드되었습니다.', 'success');
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 

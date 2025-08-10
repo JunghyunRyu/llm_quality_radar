@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Quality Radar - 시스템 아키텍처</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 배경 파티클 효과 */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(0, 212, 255, 0.5);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0; }
+            50% { transform: translateY(-100px) rotate(180deg); opacity: 1; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .main-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #00d4ff, #ff6b35, #00d4ff);
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease-in-out infinite;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .architecture-container {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            padding: 3rem;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .architecture-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.03) 0%, transparent 50%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .architecture-svg {
+            width: 100%;
+            height: auto;
+            max-height: 800px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 컨트롤 패널 */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50px;
+            padding: 0.8rem 1.5rem;
+            color: #00d4ff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 10px 20px rgba(0, 212, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .control-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        /* 정보 패널 */
+        .info-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            backdrop-filter: blur(15px);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .info-panel.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .info-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-description {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .tech-stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .tech-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .tech-item:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateY(-3px);
+        }
+
+        .tech-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-name {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .architecture-container {
+                padding: 2rem 1rem;
+                border-radius: 20px;
+            }
+            
+            .main-title {
+                font-size: 2.5rem;
+            }
+            
+            .controls {
+                gap: 0.5rem;
+            }
+            
+            .control-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* SVG 스타일 - 전역 정의 */
+        .component-glow {
+            filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.6));
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        .flowing-data {
+            animation: flowData 3s ease-in-out infinite;
+        }
+
+        @keyframes flowData {
+            0% { stroke-dashoffset: 100; }
+            100% { stroke-dashoffset: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 배경 파티클 -->
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <header class="header">
+            <h1 class="main-title">🏗️ LLM Quality Radar</h1>
+            <p class="subtitle">차세대 AI 기반 웹 자동화 테스트 아키텍처</p>
+        </header>
+
+        <div class="architecture-container">
+            <!-- 컨트롤 패널 -->
+            <div class="controls">
+                <button class="control-btn active" data-view="overview">전체 구조</button>
+                <button class="control-btn" data-view="dataflow">데이터 플로우</button>
+                <button class="control-btn" data-view="components">컴포넌트 상세</button>
+                <button class="control-btn" data-view="tech">기술 스택</button>
+            </div>
+
+            <!-- 메인 아키텍처 SVG -->
+            <svg class="architecture-svg" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                <!-- 정의 섹션 -->
+                <defs>
+                    <!-- 그라디언트 정의 -->
+                    <linearGradient id="presentationGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.8" />
+                        <stop offset="100%" style="stop-color:#0099cc;stop-opacity:0.9" />
+                    </linearGradient>
+                    
+                    <linearGradient id="agentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:0.8" />
+                        <stop offset="100%" style="stop-color:#cc5500;stop-opacity:0.9" />
+                    </linearGradient>
+                    
+                    <linearGradient id="automationGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#9b59b6;stop-opacity:0.8" />
+                        <stop offset="100%" style="stop-color:#7d3c98;stop-opacity:0.9" />
+                    </linearGradient>
+                    
+                    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#e74c3c;stop-opacity:0.8" />
+                        <stop offset="100%" style="stop-color:#c0392b;stop-opacity:0.9" />
+                    </linearGradient>
+
+                    <!-- 글로우 효과 -->
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                        <feMerge> 
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+
+                    <!-- 네온 효과 -->
+                    <filter id="neon" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feGaussianBlur stdDeviation="6" result="coloredBlur2"/>
+                        <feMerge> 
+                            <feMergeNode in="coloredBlur2"/>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+
+                    <!-- 데이터 플로우 패턴 -->
+                    <pattern id="dataFlowPattern" patternUnits="userSpaceOnUse" width="20" height="20">
+                        <circle cx="10" cy="10" r="2" fill="#00d4ff" opacity="0.6">
+                            <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+                        </circle>
+                    </pattern>
+                </defs>
+
+                <!-- 배경 그리드 -->
+                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                    <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+
+                <!-- 메인 컴포넌트들 -->
+                
+                <!-- 프레젠테이션 계층 -->
+                <g class="layer" data-layer="presentation">
+                    <!-- FastAPI -->
+                    <rect x="50" y="100" width="200" height="120" rx="20" 
+                          fill="url(#presentationGrad)" 
+                          class="component" 
+                          data-component="fastapi"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite"/>
+                    </rect>
+                    <text x="150" y="140" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🚀 FastAPI
+                    </text>
+                    <text x="150" y="165" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        RESTful API Server
+                    </text>
+                    <text x="150" y="180" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        Python • Uvicorn
+                    </text>
+
+                    <!-- 웹 대시보드 -->
+                    <rect x="300" y="100" width="200" height="120" rx="20" 
+                          fill="url(#presentationGrad)" 
+                          class="component" 
+                          data-component="dashboard"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="0.5s"/>
+                    </rect>
+                    <text x="400" y="140" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        📊 Dashboard
+                    </text>
+                    <text x="400" y="165" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        실시간 모니터링
+                    </text>
+                    <text x="400" y="180" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        HTML5 • Chart.js
+                    </text>
+
+                    <!-- 테스트 생성기 -->
+                    <rect x="550" y="100" width="200" height="120" rx="20" 
+                          fill="url(#presentationGrad)" 
+                          class="component" 
+                          data-component="generator"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="1s"/>
+                    </rect>
+                    <text x="650" y="140" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🛠️ Generator
+                    </text>
+                    <text x="650" y="165" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        테스트 생성기
+                    </text>
+                    <text x="650" y="180" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        JavaScript • AI
+                    </text>
+                </g>
+
+                <!-- AI 에이전트 계층 -->
+                <g class="layer" data-layer="agent">
+                    <!-- ADK Agent -->
+                    <rect x="100" y="280" width="250" height="120" rx="20" 
+                          fill="url(#agentGrad)" 
+                          class="component" 
+                          data-component="adk-agent"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite"/>
+                    </rect>
+                    <text x="225" y="320" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="18">
+                        🧠 ADK Agent
+                    </text>
+                    <text x="225" y="345" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="14">
+                        통합 AI 에이전트
+                    </text>
+                    <text x="225" y="365" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="11">
+                        Google ADK • Gemini 2.0
+                    </text>
+
+                    <!-- Quality Monitor -->
+                    <rect x="400" y="280" width="200" height="120" rx="20" 
+                          fill="url(#agentGrad)" 
+                          class="component" 
+                          data-component="quality"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite" begin="1s"/>
+                    </rect>
+                    <text x="500" y="320" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🔍 Quality
+                    </text>
+                    <text x="500" y="345" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        품질 분석 엔진
+                    </text>
+                    <text x="500" y="365" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        ML Analytics
+                    </text>
+
+                    <!-- Auto Healing -->
+                    <rect x="650" y="280" width="200" height="120" rx="20" 
+                          fill="url(#agentGrad)" 
+                          class="component" 
+                          data-component="healing"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite" begin="2s"/>
+                    </rect>
+                    <text x="750" y="320" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🔧 Healing
+                    </text>
+                    <text x="750" y="345" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        자동 복구
+                    </text>
+                    <text x="750" y="365" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        ML Recovery
+                    </text>
+                </g>
+
+                <!-- 자동화 및 AI 계층 -->
+                <g class="layer" data-layer="automation">
+                    <!-- Playwright MCP -->
+                    <rect x="50" y="460" width="200" height="120" rx="20" 
+                          fill="url(#automationGrad)" 
+                          class="component" 
+                          data-component="playwright"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="5s" repeatCount="indefinite"/>
+                    </rect>
+                    <text x="150" y="500" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🎭 Playwright
+                    </text>
+                    <text x="150" y="525" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        MCP Protocol
+                    </text>
+                    <text x="150" y="545" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        브라우저 자동화
+                    </text>
+
+                    <!-- Browser Control -->
+                    <rect x="300" y="460" width="200" height="120" rx="20" 
+                          fill="url(#automationGrad)" 
+                          class="component" 
+                          data-component="browser"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="5s" repeatCount="indefinite" begin="1s"/>
+                    </rect>
+                    <text x="400" y="500" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        🌐 Browser
+                    </text>
+                    <text x="400" y="525" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        멀티 브라우저
+                    </text>
+                    <text x="400" y="545" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        Chrome • Firefox
+                    </text>
+
+                    <!-- Google Cloud AI -->
+                    <rect x="550" y="460" width="200" height="120" rx="20" 
+                          fill="url(#aiGrad)" 
+                          class="component" 
+                          data-component="ai"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="5s" repeatCount="indefinite" begin="2s"/>
+                    </rect>
+                    <text x="650" y="500" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        ✨ Gemini 2.0
+                    </text>
+                    <text x="650" y="525" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        AI 모델
+                    </text>
+                    <text x="650" y="545" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        Google Cloud AI
+                    </text>
+
+                    <!-- Cloud Storage -->
+                    <rect x="800" y="460" width="180" height="120" rx="20" 
+                          fill="url(#aiGrad)" 
+                          class="component" 
+                          data-component="storage"
+                          filter="url(#glow)"
+                          style="cursor: pointer;">
+                        <animate attributeName="opacity" values="0.8;1;0.8" dur="5s" repeatCount="indefinite" begin="3s"/>
+                    </rect>
+                    <text x="890" y="500" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="16">
+                        💾 Storage
+                    </text>
+                    <text x="890" y="525" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Inter" font-size="12">
+                        클라우드 저장소
+                    </text>
+                    <text x="890" y="545" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="Inter" font-size="10">
+                        Firestore • Storage
+                    </text>
+                </g>
+
+                <!-- 연결선들 (데이터 플로우) -->
+                <g class="data-flow-lines">
+                    <!-- 수직 연결선들 -->
+                    <line x1="150" y1="220" x2="225" y2="280" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite"/>
+                    </line>
+                    
+                    <line x1="400" y1="220" x2="500" y2="280" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite" 
+                                 begin="0.5s"/>
+                    </line>
+                    
+                    <line x1="650" y1="220" x2="750" y2="280" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite" 
+                                 begin="1s"/>
+                    </line>
+
+                    <!-- 중간 계층에서 하단 계층으로 -->
+                    <line x1="225" y1="400" x2="150" y2="460" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite" 
+                                 begin="1.5s"/>
+                    </line>
+
+                    <line x1="500" y1="400" x2="400" y2="460" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite" 
+                                 begin="2s"/>
+                    </line>
+
+                    <line x1="750" y1="400" x2="650" y2="460" 
+                          stroke="url(#dataFlowPattern)" 
+                          stroke-width="3" 
+                          stroke-dasharray="10,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;15;0" 
+                                 dur="2s" 
+                                 repeatCount="indefinite" 
+                                 begin="2.5s"/>
+                    </line>
+
+                    <!-- 수평 연결선들 -->
+                    <line x1="250" y1="160" x2="300" y2="160" 
+                          stroke="#00d4ff" 
+                          stroke-width="2" 
+                          opacity="0.6"
+                          stroke-dasharray="5,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;10;0" 
+                                 dur="1.5s" 
+                                 repeatCount="indefinite"/>
+                    </line>
+
+                    <line x1="500" y1="160" x2="550" y2="160" 
+                          stroke="#00d4ff" 
+                          stroke-width="2" 
+                          opacity="0.6"
+                          stroke-dasharray="5,5"
+                          class="flow-line">
+                        <animate attributeName="stroke-dashoffset" 
+                                 values="0;10;0" 
+                                 dur="1.5s" 
+                                 repeatCount="indefinite" 
+                                 begin="0.3s"/>
+                    </line>
+                </g>
+
+                <!-- 중앙 데이터 허브 -->
+                <circle cx="450" cy="340" r="50" 
+                        fill="rgba(0, 212, 255, 0.1)" 
+                        stroke="#00d4ff" 
+                        stroke-width="2" 
+                        filter="url(#neon)"
+                        class="central-hub">
+                    <animate attributeName="r" 
+                             values="50;55;50" 
+                             dur="3s" 
+                             repeatCount="indefinite"/>
+                    <animate attributeName="opacity" 
+                             values="0.7;1;0.7" 
+                             dur="3s" 
+                             repeatCount="indefinite"/>
+                </circle>
+                
+                <text x="450" y="335" text-anchor="middle" fill="#00d4ff" font-family="Inter" font-weight="700" font-size="14">
+                    DATA HUB
+                </text>
+                <text x="450" y="350" text-anchor="middle" fill="rgba(0, 212, 255, 0.8)" font-family="Inter" font-size="10">
+                    실시간 통신
+                </text>
+
+                <!-- 제목 -->
+                <text x="500" y="50" text-anchor="middle" fill="#00d4ff" font-family="Inter" font-weight="800" font-size="24">
+                    🔄 AI 기반 웹 품질 분석 아키텍처
+                </text>
+            </svg>
+
+            <!-- 정보 패널 -->
+            <div class="info-panel" id="infoPanel">
+                <div class="info-title">
+                    <span class="info-icon">🚀</span>
+                    <span class="info-title-text">시스템 개요</span>
+                </div>
+                <div class="info-description">
+                    LLM Quality Radar는 Google ADK와 Playwright MCP를 연계한 차세대 AI 기반 웹 자동화 테스트 플랫폼입니다.
+                    자연어 명령으로 복잡한 웹 테스트를 수행하고, AI가 자동으로 품질을 분석하여 개선 방안을 제시합니다.
+                </div>
+                <div class="tech-stack-grid">
+                    <div class="tech-item">
+                        <div class="tech-icon">🚀</div>
+                        <div class="tech-name">FastAPI</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🎭</div>
+                        <div class="tech-name">Playwright</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🧠</div>
+                        <div class="tech-name">Gemini 2.0</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">☁️</div>
+                        <div class="tech-name">Google Cloud</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 파티클 생성
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (3 + Math.random() * 3) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // 컴포넌트 정보
+        const componentInfo = {
+            'fastapi': {
+                title: '🚀 FastAPI 서버',
+                description: 'Python 기반의 고성능 웹 서버로 RESTful API와 WebSocket을 통한 실시간 통신을 제공합니다. 비동기 처리를 통해 대량의 테스트 요청을 효율적으로 처리합니다.',
+                tech: ['Python 3.11+', 'FastAPI', 'Uvicorn', 'WebSocket', 'Async/Await']
+            },
+            'dashboard': {
+                title: '📊 실시간 대시보드',
+                description: '테스트 실행 상황과 품질 메트릭을 실시간으로 모니터링할 수 있는 인터랙티브 대시보드입니다. Chart.js를 활용한 시각화로 직관적인 정보 제공합니다.',
+                tech: ['HTML5', 'CSS3', 'JavaScript', 'Chart.js', 'WebSocket']
+            },
+            'generator': {
+                title: '🛠️ AI 테스트 생성기',
+                description: '자연어 입력을 받아 AI가 자동으로 테스트 코드를 생성합니다. 복잡한 스크립트 작성 없이 간단한 설명만으로 테스트를 만들 수 있습니다.',
+                tech: ['JavaScript', 'AI Integration', 'Code Generation', 'Natural Language Processing']
+            },
+            'adk-agent': {
+                title: '🧠 ADK AI 에이전트',
+                description: 'Google ADK와 Gemini 2.0 Flash 모델을 활용한 핵심 AI 에이전트입니다. 자연어를 이해하고 테스트 시나리오를 생성하며 품질 분석을 수행합니다.',
+                tech: ['Google ADK', 'Gemini 2.0 Flash', 'Python', 'Machine Learning', 'Natural Language Understanding']
+            },
+            'quality': {
+                title: '🔍 품질 분석 엔진',
+                description: '웹사이트의 성능, 접근성, SEO, 보안 등 다양한 품질 지표를 종합적으로 분석합니다. ML 기반으로 패턴을 인식하고 개선 방안을 제시합니다.',
+                tech: ['Performance Analytics', 'Accessibility Testing', 'SEO Analysis', 'Security Scanning', 'ML Pattern Recognition']
+            },
+            'healing': {
+                title: '🔧 자동 복구 시스템',
+                description: '테스트 실행 중 발생하는 오류를 ML 기반으로 자동 감지하고 복구합니다. 요소 찾기 실패, 타이밍 이슈 등을 지능적으로 해결합니다.',
+                tech: ['ML Recovery', 'Error Detection', 'Smart Retry Logic', 'Pattern Learning', 'Adaptive Testing']
+            },
+            'playwright': {
+                title: '🎭 Playwright MCP',
+                description: 'Model Context Protocol을 통해 브라우저를 제어하는 자동화 엔진입니다. 안정적이고 빠른 브라우저 제어로 다양한 테스트 시나리오를 실행합니다.',
+                tech: ['Playwright', 'MCP Protocol', 'Browser Automation', 'Cross-browser Testing', 'Screenshot Capture']
+            },
+            'browser': {
+                title: '🌐 멀티 브라우저 지원',
+                description: 'Chrome, Firefox, Safari, Edge 등 주요 브라우저를 모두 지원합니다. 각 브라우저별 특성을 고려한 최적화된 테스트를 제공합니다.',
+                tech: ['Chrome', 'Firefox', 'Safari', 'Edge', 'Cross-browser Compatibility']
+            },
+            'ai': {
+                title: '✨ Gemini 2.0 Flash',
+                description: 'Google의 최신 AI 모델인 Gemini 2.0 Flash를 활용하여 자연어 이해, 코드 생성, 품질 분석 등을 수행합니다. 빠르고 정확한 AI 추론을 제공합니다.',
+                tech: ['Gemini 2.0 Flash', 'Google Cloud AI', 'Natural Language Processing', 'Code Generation', 'Quality Analysis']
+            },
+            'storage': {
+                title: '💾 클라우드 스토리지',
+                description: 'Google Cloud의 Firestore와 Cloud Storage를 활용하여 테스트 결과, 스크린샷, 로그 등을 안전하게 저장하고 관리합니다.',
+                tech: ['Cloud Firestore', 'Cloud Storage', 'Real-time Database', 'Secure Storage', 'Auto Backup']
+            }
+        };
+
+        // 컴포넌트 클릭 이벤트
+        document.querySelectorAll('.component').forEach(component => {
+            component.addEventListener('click', function() {
+                const componentType = this.dataset.component;
+                const info = componentInfo[componentType];
+                
+                if (info) {
+                    updateInfoPanel(info);
+                    
+                    // 다른 컴포넌트들 페이드 아웃
+                    document.querySelectorAll('.component').forEach(c => {
+                        if (c !== this) {
+                            c.style.opacity = '0.3';
+                        }
+                    });
+                    
+                    // 클릭된 컴포넌트 하이라이트
+                    this.style.opacity = '1';
+                    this.style.transform = 'scale(1.05)';
+                    
+                    // 3초 후 원래대로
+                    setTimeout(() => {
+                        document.querySelectorAll('.component').forEach(c => {
+                            c.style.opacity = '1';
+                            c.style.transform = 'scale(1)';
+                        });
+                    }, 3000);
+                }
+            });
+
+            // 호버 효과
+            component.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.02)';
+                this.style.filter = 'url(#neon)';
+            });
+
+            component.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+                this.style.filter = 'url(#glow)';
+            });
+        });
+
+        // 정보 패널 업데이트
+        function updateInfoPanel(info) {
+            const panel = document.getElementById('infoPanel');
+            const titleText = panel.querySelector('.info-title-text');
+            const description = panel.querySelector('.info-description');
+            const techGrid = panel.querySelector('.tech-stack-grid');
+            
+            titleText.textContent = info.title;
+            description.textContent = info.description;
+            
+            // 기술 스택 업데이트
+            techGrid.innerHTML = '';
+            info.tech.forEach(tech => {
+                const techItem = document.createElement('div');
+                techItem.className = 'tech-item';
+                techItem.innerHTML = `
+                    <div class="tech-icon">⚡</div>
+                    <div class="tech-name">${tech}</div>
+                `;
+                techGrid.appendChild(techItem);
+            });
+            
+            panel.classList.add('show');
+        }
+
+        // 컨트롤 버튼 이벤트
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 활성 버튼 변경
+                document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const view = this.dataset.view;
+                handleViewChange(view);
+            });
+        });
+
+        function handleViewChange(view) {
+            const layers = document.querySelectorAll('.layer');
+            const flowLines = document.querySelectorAll('.flow-line');
+            const centralHub = document.querySelector('.central-hub');
+            
+            // 모든 요소 초기화
+            layers.forEach(layer => {
+                layer.style.opacity = '1';
+                layer.style.transform = 'scale(1)';
+            });
+            
+            switch(view) {
+                case 'overview':
+                    // 전체 보기 - 기본 상태
+                    break;
+                    
+                case 'dataflow':
+                    // 데이터 플로우 강조
+                    flowLines.forEach(line => {
+                        line.style.strokeWidth = '4';
+                        line.style.opacity = '1';
+                    });
+                    centralHub.style.opacity = '1';
+                    centralHub.style.transform = 'scale(1.2)';
+                    break;
+                    
+                case 'components':
+                    // 컴포넌트별 상세 정보
+                    layers.forEach((layer, index) => {
+                        layer.style.transform = `translateY(${index * 10}px) scale(1.02)`;
+                    });
+                    break;
+                    
+                case 'tech':
+                    // 기술 스택 정보
+                    updateInfoPanel({
+                        title: '🛠️ 기술 스택 개요',
+                        description: 'LLM Quality Radar는 최신 기술 스택을 활용하여 구축되었습니다. Python 백엔드, AI/ML 모델, 클라우드 서비스 등이 유기적으로 결합되어 있습니다.',
+                        tech: ['Python 3.11+', 'FastAPI', 'Google ADK', 'Playwright MCP', 'Gemini 2.0 Flash', 'Google Cloud Platform', 'Firebase', 'HTML5/CSS3/JavaScript']
+                    });
+                    break;
+            }
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            
+            // 기본 정보 표시
+            setTimeout(() => {
+                updateInfoPanel({
+                    title: '🏗️ LLM Quality Radar 아키텍처',
+                    description: 'AI 기반 웹 자동화 테스트 시스템의 전체 구조입니다. 각 컴포넌트를 클릭하여 상세 정보를 확인하세요.',
+                    tech: ['AI-Powered', 'Real-time', 'Scalable', 'Modern']
+                });
+            }, 1000);
+        });
+
+        // 키보드 단축키
+        document.addEventListener('keydown', function(e) {
+            const buttons = document.querySelectorAll('.control-btn');
+            let currentIndex = Array.from(buttons).findIndex(btn => btn.classList.contains('active'));
+            
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                buttons[currentIndex - 1].click();
+            } else if (e.key === 'ArrowRight' && currentIndex < buttons.length - 1) {
+                buttons[currentIndex + 1].click();
+            }
+        });
+    </script>
+</body>
+</html>

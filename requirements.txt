@@ -1,0 +1,67 @@
+# Google ADK와 Playwright MCP 연계 시스템 의존성
+
+# FastAPI 및 웹 프레임워크
+fastapi
+uvicorn[standard]
+pydantic
+
+# Google ADK 관련
+google-adk
+google-genai
+google-cloud-run
+google-cloud-functions
+google-cloud-storage
+google-cloud-logging
+google-cloud-monitoring
+google-cloud-aiplatform
+
+# MCP (Model Context Protocol) 관련
+mcp
+
+# Playwright 관련
+playwright
+
+# HTTP 클라이언트
+requests
+httpx
+aiohttp>=3.9.5
+
+# 비동기 프로그래밍
+asyncio-mqtt
+aiofiles
+
+# 데이터 처리
+pandas
+numpy
+
+# 로깅 및 모니터링
+structlog
+prometheus-client
+
+# 이미지 처리
+Pillow
+
+# JSON 및 설정
+python-dotenv
+pyyaml
+
+# 테스트 관련
+pytest
+pytest-asyncio
+pytest-cov
+
+# 개발 도구
+black
+flake8
+mypy
+
+# 기타 유틸리티
+python-multipart
+jinja2
+markdown
+
+
+
+
+
+
