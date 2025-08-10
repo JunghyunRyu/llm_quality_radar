@@ -23,7 +23,7 @@ jobs:
           gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
           project_id: llm-quality-radar-2e61a
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy to Firebase Hosting & Functions
         run: |
-          firebase deploy --only hosting
+          firebase deploy --only hosting,functions
 
