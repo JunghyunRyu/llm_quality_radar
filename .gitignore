@@ -136,6 +136,10 @@ screenshots/
 backups/
 config.json
 
+# Firebase/GCP service account keys (never commit)
+*.serviceaccount.json
+*firebase-adminsdk*.json
+
 # Node.js
 node_modules/
 npm-debug.log*

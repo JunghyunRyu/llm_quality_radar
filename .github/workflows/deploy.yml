@@ -17,19 +17,26 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Setup Firebase CLI
+      - name: Setup Firebase CLI (with token or service account)
         uses: w9jds/setup-firebase@main
         with:
           tools: hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
-          if [ -z "${FIREBASE_TOKEN}" ]; then
-            echo "FIREBASE_TOKEN not set. Skipping deploy." && exit 0
+          if [ -n "${GCP_SA_KEY}" ]; then
+            echo "Using GCP_SA_KEY for auth"
+            firebase deploy --only hosting
+          elif [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "Using FIREBASE_TOKEN for auth"
+            firebase deploy --only hosting
+          else
+            echo "No auth provided (GCP_SA_KEY or FIREBASE_TOKEN). Skipping deploy." && exit 0
           fi
-          firebase deploy --only hosting
 
