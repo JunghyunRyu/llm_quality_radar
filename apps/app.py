@@ -259,6 +259,8 @@ class QAQualityRadar:
             await self.operational_manager.save_test_error(test_id, str(e))
 
         finally:
+            await self.auto_healing.disable()
+            self.auto_healing.reset_healing_actions()
             await self.mcp_client.disconnect()
 
     async def _execute_scenario(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
